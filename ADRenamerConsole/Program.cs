@@ -42,21 +42,22 @@ namespace ADRenamerConsole
                     ds.Filter = "(&(objectClass=user)(objectCategory=person))";
 
                     SearchResultCollection results = ds.FindAll();
-                    
-                    foreach(SearchResult result in results)
+
+                    foreach (SearchResult result in results)
                     {
                         using (DirectoryEntry uEntry = result.GetDirectoryEntry())
                         {
                             ADUserProperties aduser = new ADUserProperties();
+
                             aduser.cn = uEntry.Properties["cn"].Value.ToString();
-                            aduser.displayName = uEntry.Properties["displayName"].Value.ToString();
-                            aduser.name = uEntry.Properties["name"].Value.ToString();
-                            aduser.profilePath = uEntry.Properties["profilePath"].Value.ToString();
-                            aduser.SamAccountName = uEntry.Properties["sAMAccountName"].Value.ToString();
-                            aduser.userPrincipalName = uEntry.Properties["userPrincipalName"].Value.ToString();
-                            aduser.homeDirectory = uEntry.Properties["homeDirectory"].Value.ToString();
-                            aduser.mailNickname = uEntry.Properties["mailNickname"].Value.ToString();
-                            aduser.sn = uEntry.Properties["sn"].Value.ToString();
+                            aduser.displayName = uEntry.Properties["displayName"].Value == null ? "" : aduser.displayName = uEntry.Properties["displayName"].Value.ToString();
+                            aduser.name = uEntry.Properties["name"].Value == null ? "" : aduser.name = uEntry.Properties["name"].Value.ToString();
+                            aduser.profilePath = uEntry.Properties["profilePath"].Value == null ? "" : aduser.profilePath = uEntry.Properties["profilePath"].Value.ToString();
+                            aduser.SamAccountName = uEntry.Properties["sAMAccountName"].Value == null ? "" : aduser.SamAccountName = uEntry.Properties["sAMAccountName"].Value.ToString();
+                            aduser.userPrincipalName = uEntry.Properties["userPrincipalName"].Value == null ? "" : aduser.userPrincipalName = uEntry.Properties["userPrincipalName"].Value.ToString();
+                            aduser.homeDirectory = uEntry.Properties["homeDirectory"].Value == null ? "" : aduser.homeDirectory = uEntry.Properties["homeDirectory"].Value.ToString();
+                            aduser.mailNickname = uEntry.Properties["mailNickname"].Value == null ? "" : aduser.mailNickname = uEntry.Properties["mailNickname"].Value.ToString();
+                            aduser.sn = uEntry.Properties["sn"].Value == null ? "" : aduser.sn = uEntry.Properties["sn"].Value.ToString();
                             Users.Add(aduser);
                         }
                     }
@@ -126,6 +127,7 @@ namespace ADRenamerConsole
                 string dirProfileSource = "";
                 string dirProfileDestination;
                 bool hasProfileMap;
+                bool hasUserMap;
 
                 try
                 {
@@ -154,7 +156,7 @@ namespace ADRenamerConsole
                         Console.ForegroundColor = ConsoleColor.White;
                         continue;
                     }
-                    else if(input.Key == ConsoleKey.Y)
+                    else if (input.Key == ConsoleKey.Y)
                     {
                         //Do nothing and proceed
                     }
@@ -162,16 +164,50 @@ namespace ADRenamerConsole
                     {
                         goto Start;
                     }
-
                 }
 
-                //Find and determine the user folder name
-                string dirUserSource = userFolder + new DirectoryInfo(Directory.GetDirectories(userFolder).Where(f => new DirectoryInfo(f).Name.ToLower() == user.SamAccountName.ToLower()).FirstOrDefault()).Name.ToLower();
-                string dirUserDestination = userFolder + loginName;
+                string dirUserSource = "";
+                string dirUserDestination = "";
 
-                aduser.profilePath = dirProfileDestination.Remove(dirProfileDestination.Length - 3);
+                try
+                {
+                    //Find and determine the user folder name
+                    dirUserSource = userFolder + new DirectoryInfo(Directory.GetDirectories(userFolder).Where(f => new DirectoryInfo(f).Name.ToLower() == user.SamAccountName.ToLower()).FirstOrDefault()).Name.ToLower();
+                    dirUserDestination = userFolder + loginName;
+                    hasUserMap = true;
+                }
+                catch
+                {
+                    hasUserMap = false;
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("WARNING: Userfolder not found or has already been renamed. Proceed?");
+                    dirUserDestination = userFolder + loginName;
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("Select: Y / N");
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Start:
+                    var input = Console.ReadKey(true);
+                    if (input.Key == ConsoleKey.N)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine();
+                        Console.WriteLine("No changes have been made, moving on to next user.");
+                        Console.ForegroundColor = ConsoleColor.White;
+                        continue;
+                    }
+                    else if (input.Key == ConsoleKey.Y)
+                    {
+                        //Do nothing and proceed
+                    }
+                    else
+                    {
+                        goto Start;
+                    }
+                }
+
                 aduser.homeDirectory = dirUserDestination;
-
+                aduser.profilePath = dirProfileDestination.Remove(dirProfileDestination.Length - 3);
                 
                 Console.WriteLine("{0,-20}{1,-50}{2,-10}{3,-1}", "Property", "From", "", "To");
                 Console.WriteLine("{0,-20}{1,-50}{2,-10}{3,-1}", "sAMAccountName:" , user.SamAccountName , " ========> " , aduser.SamAccountName);
@@ -198,7 +234,10 @@ namespace ADRenamerConsole
                 else if (input2.Key == ConsoleKey.Y)
                 {
                     //rename directories
-                    Directory.Move(dirUserSource, dirUserDestination);
+                    if (hasUserMap)
+                    {
+                        Directory.Move(dirUserSource, dirUserDestination);
+                    }
 
                     if (hasProfileMap)
                     {
@@ -254,8 +293,8 @@ namespace ADRenamerConsole
                     using (DirectoryEntry uEntry = result.GetDirectoryEntry())
                     {
                         //Change values in AD
-                        uEntry.Properties["SamAccountName"].Value = Properties.SamAccountName;
-                        uEntry.Properties["cn"].Value = Properties.cn;
+                        uEntry.Properties["sAMAccountName"].Value = Properties.SamAccountName;
+                        uEntry.Properties["givenName"].Value = Properties.cn;
                         uEntry.Properties["mailNickname"].Value = Properties.mailNickname;
                         uEntry.Properties["userPrincipalName"].Value = Properties.userPrincipalName;
                         uEntry.Properties["name"].Value = Properties.name;
