@@ -66,7 +66,7 @@ namespace ADRenamerConsole
 
             Console.WriteLine("Users found: " + Users.Count);
 
-            Console.WriteLine("Checking for duplicates surnames...");
+            Console.WriteLine("Checking for duplicates surnames that may cause conflicts...");
 
             List<string> surnames = Users.Select(f => f.sn).ToList();
             List<string> duplicateSurnames = surnames.GroupBy(x => x).Where(g => g.Count() > 1).Select(y => y.Key).ToList();
@@ -97,7 +97,7 @@ namespace ADRenamerConsole
             }
 
 
-            Console.WriteLine("We're all set! Press enter to start.");
+            Console.WriteLine("We're all set! Press any key to get started...");
             Console.ReadKey(true);
 
             //Sort list alphabetically
@@ -210,14 +210,28 @@ namespace ADRenamerConsole
                 aduser.profilePath = dirProfileDestination.Remove(dirProfileDestination.Length - 3);
                 
                 Console.WriteLine("{0,-20}{1,-50}{2,-10}{3,-1}", "Property", "From", "", "To");
-                Console.WriteLine("{0,-20}{1,-50}{2,-10}{3,-1}", "sAMAccountName:" , user.SamAccountName , " ========> " , aduser.SamAccountName);
-                Console.WriteLine("{0,-20}{1,-50}{2,-10}{3,-1}", "cn:" , user.cn , " ========> " , aduser.cn, "{0,-40}{1,-40}{2,-40}{3,-40}");
-                Console.WriteLine("{0,-20}{1,-50}{2,-10}{3,-1}", "displayName:" , user.displayName , " ========> " , aduser.displayName);
-                Console.WriteLine("{0,-20}{1,-50}{2,-10}{3,-1}", "mailNickname:" , user.mailNickname , " ========> " , aduser.mailNickname);
-                Console.WriteLine("{0,-20}{1,-50}{2,-10}{3,-1}", "userPrincipalName:" , user.userPrincipalName , " ========> " , aduser.userPrincipalName);
-                Console.WriteLine("{0,-20}{1,-50}{2,-10}{3,-1}", "name:" , user.name , " ========> " , aduser.name);
-                Console.WriteLine("{0,-20}{1,-50}{2,-10}{3,-1}", "profilePath:" , user.profilePath , " ========> " , aduser.profilePath);
-                Console.WriteLine("{0,-20}{1,-50}{2,-10}{3,-1}", "homeDirectory:" , user.homeDirectory , " ========> " , aduser.homeDirectory);
+                if(user.SamAccountName != aduser.SamAccountName)
+                    Console.WriteLine("{0,-20}{1,-50}{2,-10}{3,-1}", "sAMAccountName:" , user.SamAccountName , " ========> " , aduser.SamAccountName);
+
+                if (user.cn != aduser.cn)
+                    Console.WriteLine("{0,-20}{1,-50}{2,-10}{3,-1}", "cn:" , user.cn , " ========> " , aduser.cn, "{0,-40}{1,-40}{2,-40}{3,-40}");
+
+                if (user.mailNickname != aduser.mailNickname)
+                    Console.WriteLine("{0,-20}{1,-50}{2,-10}{3,-1}", "mailNickname:" , user.mailNickname , " ========> " , aduser.mailNickname);
+
+                if (user.userPrincipalName != aduser.userPrincipalName)
+                    Console.WriteLine("{0,-20}{1,-50}{2,-10}{3,-1}", "userPrincipalName:" , user.userPrincipalName , " ========> " , aduser.userPrincipalName);
+
+                if (user.name != aduser.name)
+                    Console.WriteLine("{0,-20}{1,-50}{2,-10}{3,-1}", "name:" , user.name , " ========> " , aduser.name);
+
+                if (hasProfileMap)
+                    if(user.profilePath != aduser.profilePath)
+                        Console.WriteLine("{0,-20}{1,-50}{2,-10}{3,-1}", "profilePath:" , user.profilePath , " ========> " , aduser.profilePath);
+
+                if (hasUserMap)
+                    if(user.homeDirectory != aduser.homeDirectory)
+                        Console.WriteLine("{0,-20}{1,-50}{2,-10}{3,-1}", "homeDirectory:" , user.homeDirectory , " ========> " , aduser.homeDirectory);
 
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine("Commit changes?: Y / N");
@@ -236,12 +250,14 @@ namespace ADRenamerConsole
                     //rename directories
                     if (hasUserMap)
                     {
-                        Directory.Move(dirUserSource, dirUserDestination);
+                        if(dirUserSource != dirUserDestination)
+                            Directory.Move(dirUserSource, dirUserDestination);
                     }
 
                     if (hasProfileMap)
                     {
-                        Directory.Move(dirProfileSource, dirProfileDestination);
+                        if(dirProfileSource != dirProfileDestination)
+                            Directory.Move(dirProfileSource, dirProfileDestination);
                     }
 
                     //Commit changes in AD
@@ -256,9 +272,13 @@ namespace ADRenamerConsole
                 {
                     goto Start2;
                 }
-
                 Console.ReadKey(true);
             }
+
+            Console.ForegroundColor = ConsoleColor.Magenta;
+            Console.WriteLine("All selected users have been handled, press any key to exit the application...");
+            ForFun.End();
+            Console.ReadKey(true);
         }
 
 
@@ -294,16 +314,15 @@ namespace ADRenamerConsole
                     {
                         //Change values in AD
                         uEntry.Properties["sAMAccountName"].Value = Properties.SamAccountName;
-                        uEntry.Properties["givenName"].Value = Properties.cn;
                         uEntry.Properties["mailNickname"].Value = Properties.mailNickname;
                         uEntry.Properties["userPrincipalName"].Value = Properties.userPrincipalName;
-                        uEntry.Properties["name"].Value = Properties.name;
 
                         //Path values
                         uEntry.Properties["homeDirectory"].Value = Properties.homeDirectory;
                         uEntry.Properties["profilePath"].Value = Properties.profilePath;
-
                         uEntry.CommitChanges();
+
+                        uEntry.Rename("CN=" + Properties.name);
                         uEntry.Close();
                     }
                 }
@@ -325,5 +344,28 @@ namespace ADRenamerConsole
 
         //Only to check for dupes
         public string sn { get; set; }
+    }
+
+    public class ForFun
+    {
+        private static string theEnd = @".___________. __    __   _______     _______ .__   __.  _______   __  
+|           ||  |  |  | |   ____|   |   ____||  \ |  | |       \ |  | 
+`---|  |----`|  |__|  | |  |__      |  |__   |   \|  | |  .--.  ||  | 
+    |  |     |   __   | |   __|     |   __|  |  . `  | |  |  |  ||  | 
+    |  |     |  |  |  | |  |____    |  |____ |  |\   | |  '--'  ||__| 
+    |__|     |__|  |__| |_______|   |_______||__| \__| |_______/ (__) 
+                                                                      ";
+                                                                 
+
+        public static async void End()
+        {
+
+            foreach(char c in theEnd)
+            {
+                Console.Write(c);
+                await Task.Delay(1);
+            }
+        }
+                   
     }
 }
